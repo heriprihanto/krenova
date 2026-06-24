@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper: Checks if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper: Checks if the user matches the owner of the folder
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Secure proposal files folder
+    match /proposals/{userId}/{allPaths=**} {
+      
+      // Allow read/write if the user is the owner of the subdirectory
+      allow read, write: if isOwner(userId)
+        // File validation checks on creation/update
+        && (
+          request.resource == null // Allows delete
+          || (
+            // Photo validation: Image type and size < 2MB
+            (
+              request.resource.contentType.matches('image/.*')
+              && request.resource.size < 2 * 1024 * 1024
+            )
+            // Document validation: PDF type and size < 5MB
+            || (
+              request.resource.contentType == 'application/pdf'
+              && request.resource.size < 5 * 1024 * 1024
+            )
+          )
+        );
+    }
+  }
+}

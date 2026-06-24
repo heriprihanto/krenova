@@ -1,0 +1,22 @@
+# Binary
+bin/
+build/
+dist/
+node_modules/
+firebase
+firebase_rules
+
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Log
+*.log
