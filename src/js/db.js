@@ -8,7 +8,9 @@ import {
   query,
   where,
   deleteDoc,
-  orderBy
+  orderBy,
+  updateDoc,
+  increment
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Helper for Mock Data
@@ -103,7 +105,10 @@ const getMockConfigs = () => {
         entry_start: "2026-06-01T00:00",
         entry_end: "2026-08-31T23:59",
         eval_start: "2026-09-01T00:00",
-        eval_end: "2026-10-15T23:59"
+        eval_end: "2026-10-15T23:59",
+        poll_active: false,
+        poll_start: "2026-10-16T00:00",
+        poll_end: "2026-11-15T23:59"
       }
     };
     localStorage.setItem("krenova_configs", JSON.stringify(configs));
@@ -575,6 +580,117 @@ export async function saveSystemConfig(key, data) {
     const docRef = doc(db, "configs", key);
     await setDoc(docRef, data);
     return data;
+  }
+}
+
+// ==========================================
+// POLLING (VOTING) METHODS
+// ==========================================
+
+const getMockVotes = () => JSON.parse(localStorage.getItem("krenova_votes") || "[]");
+const saveMockVotes = (votes) => localStorage.setItem("krenova_votes", JSON.stringify(votes));
+
+export async function getPollVotes() {
+  if (isMock) {
+    return getMockVotes();
+  } else {
+    try {
+      const querySnapshot = await getDocs(collection(db, "votes"));
+      const list = [];
+      querySnapshot.forEach((doc) => {
+        list.push(doc.data());
+      });
+      return list;
+    } catch (e) {
+      console.error("Error fetching poll votes:", e);
+      throw e;
+    }
+  }
+}
+
+export async function checkHasVoted(email) {
+  const checkEmail = email.trim().toLowerCase();
+  if (isMock) {
+    const votes = getMockVotes();
+    return votes.some(v => v.email === checkEmail);
+  } else {
+    try {
+      const docRef = doc(db, "votes", checkEmail);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists();
+    } catch (e) {
+      console.error("Error checking if user voted:", e);
+      return false;
+    }
+  }
+}
+
+export async function castVote(email, pelajarProposalId, umumProposalId) {
+  const voteEmail = email.trim().toLowerCase();
+  
+  if (!pelajarProposalId && !umumProposalId) {
+    throw new Error("Pilih setidaknya satu proposal untuk melakukan vote!");
+  }
+  
+  const alreadyVoted = await checkHasVoted(voteEmail);
+  if (alreadyVoted) {
+    throw new Error("Email ini sudah menyalurkan hak suaranya!");
+  }
+
+  const timestamp = new Date().toISOString();
+  const record = {
+    email: voteEmail,
+    pelajarProposalId: pelajarProposalId || null,
+    umumProposalId: umumProposalId || null,
+    votedAt: timestamp
+  };
+
+  if (isMock) {
+    const votes = getMockVotes();
+    votes.push(record);
+    saveMockVotes(votes);
+
+    // Update voteCount in localStorage proposals
+    const proposals = JSON.parse(localStorage.getItem("krenova_proposals") || "[]");
+    if (pelajarProposalId) {
+      const pIdx = proposals.findIndex(p => p.id === pelajarProposalId);
+      if (pIdx > -1) {
+        proposals[pIdx].voteCount = (proposals[pIdx].voteCount || 0) + 1;
+      }
+    }
+    if (umumProposalId) {
+      const pIdx = proposals.findIndex(p => p.id === umumProposalId);
+      if (pIdx > -1) {
+        proposals[pIdx].voteCount = (proposals[pIdx].voteCount || 0) + 1;
+      }
+    }
+    localStorage.setItem("krenova_proposals", JSON.stringify(proposals));
+    return record;
+  } else {
+    const docRef = doc(db, "votes", voteEmail);
+    await setDoc(docRef, record);
+
+    if (pelajarProposalId) {
+      try {
+        const propRef = doc(db, "proposals", pelajarProposalId);
+        await updateDoc(propRef, {
+          voteCount: increment(1)
+        });
+      } catch (e) {
+        console.error("Failed to increment voteCount on pelajar proposal:", e);
+      }
+    }
+    if (umumProposalId) {
+      try {
+        const propRef = doc(db, "proposals", umumProposalId);
+        await updateDoc(propRef, {
+          voteCount: increment(1)
+        });
+      } catch (e) {
+        console.error("Failed to increment voteCount on umum proposal:", e);
+      }
+    }
+    return record;
   }
 }
 

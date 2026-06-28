@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="id" class="dark">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>KRENOVA 2026 | Polling Publik Proposal Inovasi</title>
+
+        <!-- Debugging script to catch exceptions -->
+        <script>
+            window.addEventListener('error', function(e) {
+                alert('Error: ' + e.message + '\nFile: ' + e.filename + '\nLine: ' + e.lineno);
+            });
+            window.addEventListener('unhandledrejection', function(e) {
+                alert('Unhandled Promise Rejection: ' + e.reason + (e.reason && e.reason.stack ? '\nStack:\n' + e.reason.stack : ''));
+            });
+        </script>
+
+        <!-- Tailwind CSS v3 CDN -->
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <!-- Custom CSS for custom scrolls, glassmorphic components, and animations -->
+        <link rel="stylesheet" href="src/css/style.css" />
+
+        <!-- Tailwind Config Customization -->
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            brand: {
+                                dark: "#0a0f1d",
+                                card: "#121829",
+                                border: "rgba(255, 255, 255, 0.08)",
+                                indigo: "#4f46e5",
+                                cyan: "#06b6d4",
+                            },
+                        },
+                        fontFamily: {
+                            sans: ["Inter", "sans-serif"],
+                            display: ["Outfit", "sans-serif"],
+                        },
+                    },
+                },
+            };
+        </script>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            .glass {
+                background: rgba(10, 15, 29, 0.7);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+            }
+            .glass-card {
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
+            .btn-glow:hover {
+                box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
+            }
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 6px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.02);
+                border-radius: 99px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 99px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: rgba(255, 255, 255, 0.2);
+            }
+            .loader-overlay {
+                background: rgba(10, 15, 29, 0.85);
+                backdrop-filter: blur(8px);
+                z-index: 9999;
+            }
+            /* Toast notifications styling */
+            .toast-container {
+                position: fixed;
+                top: 24px;
+                right: 24px;
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                max-width: 400px;
+                width: calc(100% - 48px);
+            }
+            .toast {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 16px;
+                border-radius: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                color: #fff;
+                box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+                transform: translateX(120%);
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                background: rgba(18, 24, 41, 0.9);
+                backdrop-filter: blur(12px);
+            }
+            .toast.show {
+                transform: translateX(0);
+            }
+            .toast.success {
+                border-left: 4px solid #10b981;
+                background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, rgba(18, 24, 41, 0.9) 100%);
+            }
+            .toast.success i {
+                color: #10b981;
+            }
+            .toast.error {
+                border-left: 4px solid #ef4444;
+                background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, rgba(18, 24, 41, 0.9) 100%);
+            }
+            .toast.error i {
+                color: #ef4444;
+            }
+            .toast.warning {
+                border-left: 4px solid #f59e0b;
+                background: linear-gradient(90deg, rgba(245, 158, 11, 0.05) 0%, rgba(18, 24, 41, 0.9) 100%);
+            }
+            .toast.warning i {
+                color: #f59e0b;
+            }
+            .toast.info {
+                border-left: 4px solid #3b82f6;
+                background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, rgba(18, 24, 41, 0.9) 100%);
+            }
+            .toast.info i {
+                color: #3b82f6;
+            }
+        </style>
+    </head>
+    <body class="bg-[#0a0f1d] text-slate-100 min-h-screen flex flex-col font-sans antialiased overflow-x-hidden">
+        <!-- GLOBAL LOADER OVERLAY -->
+        <div
+            id="loading-overlay"
+            class="loader-overlay fixed inset-0 hidden flex flex-col items-center justify-center gap-4"
+        >
+            <div class="relative w-16 h-16">
+                <div
+                    class="absolute inset-0 rounded-full border-4 border-slate-700/50"
+                ></div>
+                <div
+                    class="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"
+                ></div>
+            </div>
+            <p
+                class="text-indigo-400 font-medium animate-pulse"
+                id="loading-text"
+            >
+                Memproses data...
+            </p>
+        </div>
+
+        <!-- Notification Toasts Container -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- Main Navigation Header -->
+        <header
+            class="sticky top-0 z-40 glass border-b border-white/5 transition-all duration-300"
+        >
+            <div
+                class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between"
+            >
+                <!-- Logo -->
+                <a href="index.html" class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20"
+                    >
+                        <i
+                            data-lucide="lightbulb"
+                            class="w-6 h-6 text-white"
+                        ></i>
+                    </div>
+                    <div>
+                        <span
+                            class="font-display font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-slate-100 to-indigo-300 bg-clip-text text-transparent"
+                            >KRENOVA</span
+                        >
+                        <span
+                            class="font-display font-semibold text-xs block text-cyan-400 -mt-1 tracking-wider"
+                            >Kota Tegal 2026</span
+                        >
+                    </div>
+                </a>
+
+                <!-- Desktop Nav links -->
+                <nav
+                    class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300"
+                >
+                    <a href="index.html#about" class="hover:text-white transition-colors"
+                        >Tentang Lomba</a
+                    >
+                    <a
+                        href="index.html#categories"
+                        class="hover:text-white transition-colors"
+                        >Kategori</a
+                    >
+                    <a
+                        href="index.html#timeline"
+                        class="hover:text-white transition-colors"
+                        >Timeline</a
+                    >
+                    <a
+                        href="polling.html"
+                        class="hover:text-white transition-colors"
+                        >Polling Inovasi</a
+                    >
+                    <a href="index.html#faq" class="hover:text-white transition-colors"
+                        >FAQ</a
+                    >
+                </nav>
+
+                <!-- Auth Action Button -->
+                <div class="flex items-center gap-4">
+                    <!-- Dashboard Navigation shortcuts (Only visible when logged in) -->
+                    <span
+                        id="nav-user-email"
+                        class="hidden text-xs text-slate-400 border border-white/10 rounded-full px-3 py-1.5 bg-white/5 font-mono"
+                    ></span>
+
+                    <!-- Theme Toggle Button -->
+                    <button
+                        id="btn-theme-toggle"
+                        class="p-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 hover:text-white transition-all active:scale-95 flex items-center justify-center"
+                        title="Ubah Tema"
+                    >
+                        <i
+                            data-lucide="sun"
+                            class="w-5 h-5 hidden dark:block"
+                        ></i>
+                        <i
+                            data-lucide="moon"
+                            class="w-5 h-5 block dark:hidden"
+                        ></i>
+                    </button>
+
+                    <button
+                        id="btn-auth-action"
+                        class="btn-glow px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2"
+                    >
+                        <i data-lucide="log-in" class="w-4 h-4"></i>
+                        <span>Login</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN APP CONTAINER -->
+        <main class="flex-grow">
+            <!-- Polling Inovasi Section -->
+            <div
+                id="polling"
+                class="py-20 relative min-h-[calc(100vh-200px)] flex flex-col justify-center"
+            >
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+                    <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                        <div class="mb-8 flex justify-center">
+                            <a href="index.html" class="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-white transition-colors bg-white/5 border border-white/10 rounded-full px-4 py-2 hover:bg-white/10">
+                                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                                Kembali ke Beranda
+                            </a>
+                        </div>
+                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold uppercase tracking-wider">
+                            <span class="relative flex h-2 w-2">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                            </span>
+                            Polling Publik Krenova 2026
+                        </span>
+                        <h1 class="font-display font-extrabold text-3xl sm:text-4xl text-white">
+                            Dukung Inovasi Terfavorit Anda
+                        </h1>
+                        <div class="h-1 w-20 bg-indigo-500 mx-auto rounded-full"></div>
+                        <p class="text-slate-400">
+                            Berikan dukungan suara Anda untuk proposal inovasi terbaik. Satu email dapat memilih maksimal 1 proposal Kategori Pelajar dan 1 proposal Kategori Umum.
+                        </p>
+                    </div>
+
+                    <!-- Active Polling UI Container -->
+                    <div id="polling-active-container" class="hidden space-y-8 animate-fade-in">
+                        <div class="grid lg:grid-cols-2 gap-8 items-start">
+                            <!-- Column 1: Kategori Pelajar -->
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between border-b border-white/5 pb-3">
+                                    <h3 class="font-display font-bold text-lg text-white flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                                        Kategori Pelajar
+                                    </h3>
+                                    <span class="text-xs text-slate-400 font-medium bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full">Pilih 1 Inovasi</span>
+                                </div>
+                                <div id="polling-pelajar-list" class="grid sm:grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                    <!-- Dynamically loaded -->
+                                </div>
+                            </div>
+
+                            <!-- Column 2: Kategori Umum -->
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between border-b border-white/5 pb-3">
+                                    <h3 class="font-display font-bold text-lg text-white flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                                        Kategori Umum
+                                    </h3>
+                                    <span class="text-xs text-slate-400 font-medium bg-cyan-400/10 border border-cyan-400/20 px-2.5 py-1 rounded-full">Pilih 1 Inovasi</span>
+                                </div>
+                                <div id="polling-umum-list" class="grid sm:grid-cols-1 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                    <!-- Dynamically loaded -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Polling Submit Box -->
+                        <div class="max-w-xl mx-auto glass-card rounded-2xl p-6 border border-white/10 mt-10">
+                            <form id="form-submit-poll" class="space-y-4">
+                                <h4 class="font-display font-bold text-sm text-white uppercase tracking-wider text-center">Konfirmasi Pilihan Suara</h4>
+                                
+                                <!-- Authenticated view fields -->
+                                <div id="poll-auth-fields" class="space-y-4 hidden">
+                                    <div>
+                                        <label for="poll-user-email" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Alamat Email Anda</label>
+                                        <input
+                                            type="email"
+                                            id="poll-user-email"
+                                            required
+                                            placeholder="contoh: nama@email.com"
+                                            class="w-full px-4 py-3 rounded-xl text-sm bg-brand-dark/50 border border-white/10 text-white focus:outline-none focus:border-indigo-500"
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        class="btn-glow w-full py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-700 hover:to-cyan-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/10 active:scale-98 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <i data-lucide="send" class="w-4 h-4"></i>
+                                        <span>Kirim Polling Suara</span>
+                                    </button>
+                                </div>
+
+                                <!-- Unauthenticated view fields -->
+                                <div id="poll-unauth-fields" class="text-center space-y-4">
+                                    <p class="text-xs text-slate-400 leading-relaxed">
+                                        Anda wajib masuk menggunakan Akun Google untuk dapat memberikan dukungan suara pada proposal inovasi pilihan Anda.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        id="btn-poll-login-google"
+                                        class="btn-glow w-full py-3.5 bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-700 hover:to-cyan-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/10 active:scale-98 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <i data-lucide="log-in" class="w-4 h-4"></i>
+                                        <span>Login dengan Google</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Inactive/Expired Polling UI Container -->
+                    <div id="polling-inactive-container" class="hidden max-w-xl mx-auto text-center space-y-6">
+                        <div class="glass-card rounded-3xl p-10 border border-white/5 space-y-5">
+                            <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto shadow-lg">
+                                <i data-lucide="calendar-off" class="w-8 h-8"></i>
+                            </div>
+                            <h3 class="font-display font-extrabold text-xl text-white">Polling Belum Dibuka / Sudah Berakhir</h3>
+                            <p class="text-sm text-slate-400 leading-relaxed">
+                                Mohon maaf, periode polling publik saat ini sedang tidak aktif. Polling hanya dapat dilakukan selama rentang waktu yang telah ditentukan oleh Administrator.
+                            </p>
+                            <div class="bg-white/5 border border-white/5 rounded-2xl p-4 inline-block text-left mx-auto">
+                                <div class="flex items-center gap-2.5 text-xs text-slate-300 justify-center">
+                                    <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+                                    <span>Jadwal Polling:</span>
+                                </div>
+                                <p class="font-display font-bold text-xs text-slate-100 mt-1.5" id="poll-schedule-range-text">
+                                    -
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Already Voted UI Container -->
+                    <div id="polling-voted-container" class="hidden max-w-xl mx-auto text-center space-y-6">
+                        <div class="glass-card rounded-3xl p-10 border border-white/5 space-y-5">
+                            <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto shadow-lg">
+                                <i data-lucide="check-circle" class="w-8 h-8"></i>
+                            </div>
+                            <h3 class="font-display font-extrabold text-xl text-white">Terima Kasih Atas Partisipasi Anda!</h3>
+                            <p class="text-sm text-slate-400 leading-relaxed">
+                                Anda telah berhasil menyalurkan dukungan suara pada Polling Inovasi Krenova 2026. Data pilihan polling Anda telah berhasil direkam oleh sistem.
+                            </p>
+                            <button
+                                id="btn-poll-reset-local"
+                                type="button"
+                                class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors underline"
+                            >
+                                Gunakan email lain untuk memberikan suara
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Global Footer -->
+        <footer
+            class="mt-auto border-t border-white/5 py-10 bg-[#070b14] relative z-10 text-center space-y-3"
+        >
+            <p
+                class="text-xs text-slate-500 font-semibold tracking-wider uppercase"
+            >
+                Badan Perencanaan Pembangunan Daerah (BAPPERIDA) Kota Tegal
+            </p>
+            <p class="text-[11px] text-slate-600">
+                &copy; 2026 KRENOVA Kota Tegal. All Rights Reserved. Powered by
+                HTML5/Tailwind/Firebase.
+            </p>
+        </footer>
+
+        <!-- Lucide Icons CDN -->
+        <script src="https://unpkg.com/lucide@latest"></script>
+
+        <!-- Custom Script for Polling -->
+        <script type="module" src="src/js/polling.js"></script>
+    </body>
+</html>

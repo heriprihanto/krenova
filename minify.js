@@ -96,6 +96,27 @@ async function run() {
       console.warn('Warning: index.html not found in root directory.');
     }
 
+    // 1b. Process polling.html at root
+    const pollingSrc = path.join(__dirname, 'polling.html');
+    const pollingDest = path.join(BUILD_DIR, 'polling.html');
+
+    if (fs.existsSync(pollingSrc)) {
+      console.log(`Minifying HTML: ${pollingSrc} -> ${pollingDest}`);
+      const htmlContent = fs.readFileSync(pollingSrc, 'utf8');
+      const minifiedHtml = await minifyHtml(htmlContent, {
+        collapseWhitespace: true,
+        removeComments: true,
+        minifyJS: true,
+        minifyCSS: true,
+        useShortDoctype: true,
+        removeEmptyAttributes: true,
+        removeRedundantAttributes: true,
+      });
+      fs.writeFileSync(pollingDest, minifiedHtml, 'utf8');
+    } else {
+      console.warn('Warning: polling.html not found in root directory.');
+    }
+
     // 2. Process all files in src/
     if (fs.existsSync(SRC_DIR)) {
       await processDirectory(SRC_DIR, path.join(BUILD_DIR, 'src'));

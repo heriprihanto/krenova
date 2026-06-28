@@ -30,6 +30,9 @@ import {
   deleteUserProfile,
   getAIAnalysis,
   saveAIAnalysis,
+  getPollVotes,
+  checkHasVoted,
+  castVote
 } from "./db.js";
 import { uploadFile } from "./storage.js";
 
@@ -566,6 +569,12 @@ const roleMenus = {
       panel: "panel-admin-users",
       subtitle: "Manajemen seluruh user dalam sistem",
     },
+    {
+      label: "Hasil Polling",
+      icon: "thumbs-up",
+      panel: "panel-admin-polling",
+      subtitle: "Hasil suara/vote polling proposal inovasi",
+    },
   ],
 };
 
@@ -633,6 +642,14 @@ onAuthStateChangedListener(async (user) => {
       (activeSec.id === "section-dashboard" || activeSec.id === "section-form")
     ) {
       showSection("section-landing");
+    }
+
+    // Direct to login section if "?login=true" is passed
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("login") === "true") {
+      showSection("section-auth");
+      // Clean up the URL search param so refresh doesn't force auth screen
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }
   refreshIcons();
@@ -799,6 +816,8 @@ async function loadPanelData(panelId) {
       await loadAdminPenilaian();
     } else if (panelId === "panel-admin-users") {
       await loadAdminUsers();
+    } else if (panelId === "panel-admin-polling") {
+      await loadAdminPollingResults();
     }
   } catch (error) {
     showToast(formatDbError(error), "error");
@@ -1875,12 +1894,19 @@ if (formSchedule) {
     const evalEnd = document.getElementById("schedule-eval-end").value;
 
     showLoading("Menyimpan jadwal...");
+    const pollActive = document.getElementById("schedule-poll-active")?.checked || false;
+    const pollStart = document.getElementById("schedule-poll-start")?.value || "";
+    const pollEnd = document.getElementById("schedule-poll-end")?.value || "";
+
     try {
       await saveSystemConfig("schedule", {
         entry_start: entryStart,
         entry_end: entryEnd,
         eval_start: evalStart,
         eval_end: evalEnd,
+        poll_active: pollActive,
+        poll_start: pollStart,
+        poll_end: pollEnd
       });
       showToast("Jadwal pelaksanaan berhasil disimpan.", "success");
       await loadScheduleConfig();
@@ -4383,6 +4409,14 @@ async function loadScheduleConfig() {
       if (elEvalStart) elEvalStart.value = schedule.eval_start || "";
       if (elEvalEnd) elEvalEnd.value = schedule.eval_end || "";
 
+      const elPollActive = document.getElementById("schedule-poll-active");
+      const elPollStart = document.getElementById("schedule-poll-start");
+      const elPollEnd = document.getElementById("schedule-poll-end");
+
+      if (elPollActive) elPollActive.checked = schedule.poll_active || false;
+      if (elPollStart) elPollStart.value = schedule.poll_start || "";
+      if (elPollEnd) elPollEnd.value = schedule.poll_end || "";
+
       const elViewEntry = document.getElementById("view-schedule-entry");
       const elViewEval = document.getElementById("view-schedule-eval");
 
@@ -4404,6 +4438,11 @@ async function loadScheduleConfig() {
         elViewEntry.textContent = `${formatScheduleDate(schedule.entry_start)} s/d ${formatScheduleDate(schedule.entry_end)}`;
       if (elViewEval)
         elViewEval.textContent = `${formatScheduleDate(schedule.eval_start)} s/d ${formatScheduleDate(schedule.eval_end)}`;
+
+      const elPollRange = document.getElementById("poll-schedule-range-text");
+      if (elPollRange) {
+        elPollRange.textContent = `${formatScheduleDate(schedule.poll_start)} s/d ${formatScheduleDate(schedule.poll_end)}`;
+      }
 
       const now = new Date();
       const evalStart = schedule.eval_start
@@ -4429,6 +4468,8 @@ async function loadScheduleConfig() {
         "admin-schedule-status-text",
       );
       if (elAdminStatus) elAdminStatus.textContent = juriStatus;
+
+
     }
   } catch (e) {
     console.error("Gagal memuat konfigurasi jadwal:", e);
@@ -4570,4 +4611,135 @@ if (btnSaveGeminiKey && fieldGeminiKey) {
       hideLoading();
     }
   });
+}
+
+
+
+// ----------------------------------------------------
+// ADMIN POLLING RESULTS VISUALIZATION
+// ----------------------------------------------------
+async function loadAdminPollingResults() {
+  const elTotal = document.getElementById("admin-poll-total-votes");
+  const elPelajarTotal = document.getElementById("admin-poll-pelajar-votes");
+  const elUmumTotal = document.getElementById("admin-poll-umum-votes");
+  
+  const elPelajarRatio = document.getElementById("admin-poll-pelajar-ratio");
+  const elUmumRatio = document.getElementById("admin-poll-umum-ratio");
+
+  const tbodyPelajar = document.getElementById("table-admin-poll-pelajar");
+  const tbodyUmum = document.getElementById("table-admin-poll-umum");
+
+  if (!tbodyPelajar || !tbodyUmum) return;
+
+  tbodyPelajar.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-slate-400">Memuat...</td></tr>`;
+  tbodyUmum.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-slate-400">Memuat...</td></tr>`;
+
+  try {
+    const votes = await getPollVotes();
+    const proposals = await getAllProposals("juri");
+
+    const totalVotes = votes.length;
+    const pelajarVotesMap = {};
+    const umumVotesMap = {};
+
+    let pelajarVotesCount = 0;
+    let umumVotesCount = 0;
+
+    votes.forEach(v => {
+      if (v.pelajarProposalId) {
+        pelajarVotesMap[v.pelajarProposalId] = (pelajarVotesMap[v.pelajarProposalId] || 0) + 1;
+        pelajarVotesCount++;
+      }
+      if (v.umumProposalId) {
+        umumVotesMap[v.umumProposalId] = (umumVotesMap[v.umumProposalId] || 0) + 1;
+        umumVotesCount++;
+      }
+    });
+
+    if (elTotal) elTotal.textContent = totalVotes;
+    if (elPelajarTotal) elPelajarTotal.textContent = pelajarVotesCount;
+    if (elUmumTotal) elUmumTotal.textContent = umumVotesCount;
+
+    const pelajarPercentage = totalVotes > 0 ? (pelajarVotesCount / totalVotes * 100).toFixed(0) : 0;
+    const umumPercentage = totalVotes > 0 ? (umumVotesCount / totalVotes * 100).toFixed(0) : 0;
+    
+    if (elPelajarRatio) elPelajarRatio.textContent = `${pelajarPercentage}% dari total suara`;
+    if (elUmumRatio) elUmumRatio.textContent = `${umumPercentage}% dari total suara`;
+
+    const pelajarProps = proposals.filter(p => (p.kategoriPengusul || "Pelajar").trim().toLowerCase() === "pelajar");
+    const umumProps = proposals.filter(p => (p.kategoriPengusul || "Pelajar").trim().toLowerCase() === "umum");
+
+    pelajarProps.forEach(p => {
+      p.pollVotes = pelajarVotesMap[p.id] || 0;
+    });
+    umumProps.forEach(p => {
+      p.pollVotes = umumVotesMap[p.id] || 0;
+    });
+
+    pelajarProps.sort((a, b) => b.pollVotes - a.pollVotes);
+    umumProps.sort((a, b) => b.pollVotes - a.pollVotes);
+
+    // Render Pelajar table
+    if (pelajarProps.length === 0) {
+      tbodyPelajar.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-slate-500">Belum ada proposal pelajar yang disetujui.</td></tr>`;
+    } else {
+      tbodyPelajar.innerHTML = "";
+      pelajarProps.forEach((p, idx) => {
+        const percent = pelajarVotesCount > 0 ? (p.pollVotes / pelajarVotesCount * 100) : 0;
+        tbodyPelajar.appendChild(createAdminPollRow(p, idx + 1, percent, "purple"));
+      });
+    }
+
+    // Render Umum table
+    if (umumProps.length === 0) {
+      tbodyUmum.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-slate-500">Belum ada proposal umum yang disetujui.</td></tr>`;
+    } else {
+      tbodyUmum.innerHTML = "";
+      umumProps.forEach((p, idx) => {
+        const percent = umumVotesCount > 0 ? (p.pollVotes / umumVotesCount * 100) : 0;
+        tbodyUmum.appendChild(createAdminPollRow(p, idx + 1, percent, "cyan"));
+      });
+    }
+  } catch (e) {
+    console.error("Gagal memuat hasil polling admin:", e);
+    tbodyPelajar.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-rose-400">Gagal memuat data polling.</td></tr>`;
+    tbodyUmum.innerHTML = `<tr><td colspan="4" class="px-6 py-4 text-center text-rose-400">Gagal memuat data polling.</td></tr>`;
+  }
+  refreshIcons();
+}
+
+function createAdminPollRow(prop, rank, percent, themeColor) {
+  const tr = document.createElement("tr");
+  tr.className = "hover:bg-white/5 transition-colors border-b border-white/5";
+  
+  let rankDisplay = rank;
+  if (rank === 1) {
+    rankDisplay = `<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold">🥇</span>`;
+  } else if (rank === 2) {
+    rankDisplay = `<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-400/20 text-slate-300 border border-slate-400/30 text-xs font-bold">🥈</span>`;
+  } else if (rank === 3) {
+    rankDisplay = `<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-700/20 text-amber-600 border border-amber-700/30 text-xs font-bold">🥉</span>`;
+  } else {
+    rankDisplay = `<span class="text-xs text-slate-400 font-mono font-bold">${rank}</span>`;
+  }
+
+  const barColorClass = themeColor === "purple" ? "bg-purple-500" : "bg-cyan-400";
+  
+  tr.innerHTML = `
+    <td class="px-4 py-4 text-center">${rankDisplay}</td>
+    <td class="px-4 py-4">
+      <h4 class="font-display font-bold text-white text-sm truncate max-w-[200px]" title="${prop.title || prop.judul_inovasi}">${prop.title || prop.judul_inovasi}</h4>
+      <p class="text-xs text-slate-500 mt-0.5">${prop.fullName || prop.nama_inovator || "Inovator"}</p>
+    </td>
+    <td class="px-4 py-4 text-right font-mono font-bold text-white">${prop.pollVotes}</td>
+    <td class="px-4 py-4">
+      <div class="flex items-center justify-end gap-2">
+        <div class="w-20 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div class="h-full ${barColorClass} rounded-full" style="width: ${percent}%"></div>
+        </div>
+        <span class="text-xs font-mono font-semibold text-slate-400 w-10 text-right">${percent.toFixed(0)}%</span>
+      </div>
+    </td>
+  `;
+  return tr;
 }
