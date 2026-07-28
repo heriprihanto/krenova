@@ -2211,6 +2211,42 @@ function validateStep(step) {
       showToast("Harap tentukan lokasi inovasi Anda pada Peta!", "warning");
       return false;
     }
+
+    // Berkas wajib sebelum submit (draf tidak divalidasi — lihat btnSaveDraft).
+    const requiredUploads = [
+      { id: "field-photo-url", label: "Foto Peserta / Tim" },
+      { id: "field-identity-url", label: "Identitas Peserta" },
+      { id: "field-originality-url", label: "Surat Pernyataan Keaslian" },
+      { id: "field-approval-url", label: "Lembar Pengesahan Resmi" },
+    ];
+    const missing = requiredUploads.filter((f) => {
+      const el = document.getElementById(f.id);
+      return !el || !el.value.trim();
+    });
+    if (missing.length > 0) {
+      showToast(
+        `Wajib mengunggah berkas: ${missing.map((f) => f.label).join(", ")}!`,
+        "warning",
+      );
+      return false;
+    }
+
+    // Foto produk wajib minimal 1 (disimpan sebagai JSON array di field-products-urls).
+    let productPhotos = [];
+    try {
+      productPhotos = JSON.parse(
+        document.getElementById("field-products-urls").value || "[]",
+      );
+    } catch (e) {
+      productPhotos = [];
+    }
+    if (!Array.isArray(productPhotos) || productPhotos.length === 0) {
+      showToast(
+        "Wajib mengunggah minimal 1 Foto Hasil Inovasi / Produk!",
+        "warning",
+      );
+      return false;
+    }
   }
 
   return true;
@@ -3787,6 +3823,38 @@ async function printProposal(prop) {
       ? prop.anggota.map((a) => `<li>${a}</li>`).join("")
       : "<li>Tidak ada (Perorangan)</li>";
 
+  // --- Berkas pendukung & galeri foto (hasil upload Langkah 5) ---
+  const fileRow = (label, url, kind) => {
+    if (!url)
+      return `<tr><td style="font-weight:600;">${label}</td><td style="color:#94a3b8; font-style:italic;">Tidak diunggah</td></tr>`;
+    const text = kind === "link" ? url : "Lihat / Unduh berkas";
+    return `<tr><td style="font-weight:600;">${label}</td><td><a href="${url}" style="color:#4f46e5; word-break:break-all;">${text}</a></td></tr>`;
+  };
+
+  const berkasRows = [
+    fileRow("Foto Peserta / Tim", prop.teamPhotoUrl, "file"),
+    fileRow("Identitas Peserta (KTP / Kartu Pelajar)", prop.identityDocUrl, "file"),
+    fileRow("Surat Pernyataan Keaslian Inovasi", prop.originalityDocUrl, "file"),
+    fileRow("Lembar Pengesahan Resmi", prop.approvalDocUrl, "file"),
+    fileRow("Link Video Hasil Inovasi", prop.videoUrl, "link"),
+  ].join("");
+
+  const galleryImages = [];
+  if (prop.teamPhotoUrl)
+    galleryImages.push({ url: prop.teamPhotoUrl, cap: "Foto Peserta / Tim" });
+  (prop.productPhotosUrls || []).forEach((url, i) =>
+    galleryImages.push({ url, cap: `Foto Produk ${i + 1}` }),
+  );
+
+  const galleryHtml = galleryImages.length
+    ? `<div class="gallery">${galleryImages
+        .map(
+          (g) =>
+            `<figure class="gallery-item"><img src="${g.url}" alt="${g.cap}"><figcaption>${g.cap}</figcaption></figure>`,
+        )
+        .join("")}</div>`
+    : `<div style="color:#94a3b8; font-style:italic;">Tidak ada foto yang diunggah.</div>`;
+
   const html = `
     <!DOCTYPE html>
     <html lang="id">
@@ -3905,6 +3973,39 @@ async function printProposal(prop) {
           background-color: #f8fafc;
           padding: 6px 10px;
           border-left: 2px solid #cbd5e1;
+        }
+        .gallery {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-top: 10px;
+        }
+        .gallery-item {
+          margin: 0;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          overflow: hidden;
+          page-break-inside: avoid;
+        }
+        .gallery-item img {
+          width: 100%;
+          height: 150px;
+          object-fit: cover;
+          display: block;
+          background: #f1f5f9;
+        }
+        .gallery-item figcaption {
+          font-size: 10px;
+          color: #64748b;
+          padding: 5px 8px;
+          background: #f8fafc;
+          text-align: center;
+        }
+        @media print {
+          .gallery-item img {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
         }
         .print-header-actions {
           display: flex;
@@ -4055,6 +4156,26 @@ async function printProposal(prop) {
       <div class="section">
         <h2>H. Anggaran Biaya</h2>
         <div class="rich-text">${content.budget || "Tidak ada konten."}</div>
+      </div>
+
+      <div class="section" style="page-break-before: always;">
+        <h2>Berkas Pendukung</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 45%;">Jenis Berkas</th>
+              <th>Tautan / Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${berkasRows}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>Galeri Foto Inovasi</h2>
+        ${galleryHtml}
       </div>
 
       <div class="section" style="page-break-before: always;">
